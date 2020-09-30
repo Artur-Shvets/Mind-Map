@@ -193,14 +193,14 @@ window.addEventListener('resize', e => {
 // Event TouchScreen_________________________
 
 canvas.addEventListener('touchstart', e => {
-  drawInfo(`Touch Start:  X ${e.touches[0].clientX} Y ${e.touches[0].clientY}`);
+  drawInfo(`Touch Start:  X ${e.clientX} Y ${e.clientY}`);
 
   canvas.addEventListener('touchmove', e => {
-    drawInfo(`Touch Move:  X ${e.touches[0].clientX} Y ${e.touches[0].clientY}`);
+    drawInfo(`Touch Move:  X ${e.clientX} Y ${e.clientY}`);
   }, false);
 
   canvas.addEventListener('touchend', e => {
-    drawInfo(`Touch End:  X ${e.touches[0].clientX} Y ${e.touches[0].clientY}`);
+    drawInfo(`Touch End:  X ${e.clientX} Y ${e.clientY}`);
   }, false);
 
 }, false);
