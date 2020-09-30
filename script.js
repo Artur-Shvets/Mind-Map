@@ -261,7 +261,7 @@ window.addEventListener('resize', e => {
 
 // Event TouchScreen_________________________
 
-canvas.addEventListener('touchmove' e => {
+canvas.addEventListener('touchmove', e => {
   if (isAnimation === false) {
     if (isMouseDown === false) { // Activation Features and Blocks
       activationOfElements();
