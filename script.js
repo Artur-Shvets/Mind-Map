@@ -259,34 +259,6 @@ window.addEventListener('resize', e => {
   drawCanvas();
 });
 
-// Event TouchScreen_________________________
-
-canvas.addEventListener('touchstart', e => {
-  drawInfo('touchstart');
-
-  canvas.addEventListener('touchmove', e => {
-    drawInfo('touchmove');
-  }, false);
-
-  canvas.addEventListener('touchend', e => {
-    drawInfo('touchend');
-  }, false);
-
-}, false);
-
-function drawInfo (text) {
-  ctx.clearRect(0, 0, widthCanvas, 50);
-  ctx.beginPath();
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = 'white';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '20px Arial';
-  ctx.fillText(text, widthCanvas / 2, 30);
-};
-
 // Formating Elements______________________________
 
 function doFormatAllBlocks() {
