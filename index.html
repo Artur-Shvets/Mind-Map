@@ -1,14 +1,186 @@
 <!DOCTYPE html>
-<html lang="en">
-
-  <head>
+<html lang="uk">
+<head>
     <meta charset="UTF-8">
-    <title>Mind Map 0.9.6</title>
-    <link rel="stylesheet" href="style.css">
-  </head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Піксельний Редактор</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            color: #333;
+            margin: 0;
+            padding-top: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #e9e9e9;
+        }
+        #grid-container {
+            display: grid;
+            border: 1px solid #ccc;
+            background-color: #fff;
+        }
+        .pixel {
+            width: 12px;
+            height: 12px;
+            /* No border between pixels, the grid gap will handle it */
+        }
+        .pixel.active {
+            background-color: #000000;
+        }
+    </style>
+</head>
+<body>
 
-  <body>
-    <canvas id="Canvas" tabindex=0></canvas>
-    <script src="script.js" defer></script>
-  </body>
+    <h1>Піксельний Редактор</h1>
+    <div class="controls">
+        <button id="export-text-btn">Зберегти як Текстовий Малюнок</button>
+        <button id="export-coords-btn">Зберегти як Координати</button>
+    </div>
+    <div id="grid-container"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gridContainer = document.getElementById('grid-container');
+            const gridSize = 50;
+
+            // Set up grid columns and rows dynamically
+            gridContainer.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            gridContainer.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+            gridContainer.style.border = '1px solid #333';
+
+            // Create pixels and add coordinates for later export
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    const pixel = document.createElement('div');
+                    pixel.classList.add('pixel');
+                    pixel.dataset.x = x;
+                    pixel.dataset.y = y;
+                    // Add a thin border to each pixel to form the grid lines
+                    pixel.style.borderRight = '1px solid #eee';
+                    pixel.style.borderBottom = '1px solid #eee';
+                    gridContainer.appendChild(pixel);
+                }
+            }
+
+            let isDrawing = false;
+
+            // Function to "draw" on a pixel by toggling its state
+            function draw(event) {
+                // Check if the target is a pixel to avoid errors
+                if (event.target.classList.contains('pixel')) {
+                    // Use toggle to allow for color inversion (drawing and erasing)
+                    event.target.classList.toggle('active');
+                }
+            }
+
+            // Start drawing on mouse down
+            gridContainer.addEventListener('mousedown', (event) => {
+                event.preventDefault(); // Prevent text selection while drawing
+                isDrawing = true;
+                draw(event);
+            });
+
+            // Continue drawing on mouse move
+            gridContainer.addEventListener('mousemove', (event) => {
+                if (isDrawing) {
+                    draw(event);
+                }
+            });
+
+            // Stop drawing when mouse button is released anywhere
+            window.addEventListener('mouseup', () => {
+                isDrawing = false;
+            });
+
+            // Also stop drawing if the mouse leaves the grid area
+            gridContainer.addEventListener('mouseleave', () => {
+                isDrawing = false;
+            });
+
+            // --- EXPORT FUNCTIONALITY ---
+
+            const exportTextBtn = document.getElementById('export-text-btn');
+
+            exportTextBtn.addEventListener('click', () => {
+                const pixels = gridContainer.querySelectorAll('.pixel');
+                // Initialize a 2D array representing the grid, filled with the "white" character
+                let grid = Array.from({ length: gridSize }, () => new Array(gridSize).fill('W'));
+
+                // Populate the grid array based on active pixels
+                pixels.forEach(pixel => {
+                    if (pixel.classList.contains('active')) {
+                        const x = parseInt(pixel.dataset.x);
+                        const y = parseInt(pixel.dataset.y);
+                        grid[y][x] = 'B'; // 'B' for black
+                    }
+                });
+
+                // Convert the 2D array to a CSV string
+                const csvContent = grid.map(row => row.join(',')).join('\n');
+
+                // Create and trigger a download for the CSV file
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'drawing.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            });
+
+            const exportCoordsBtn = document.getElementById('export-coords-btn');
+
+            exportCoordsBtn.addEventListener('click', () => {
+                const activePixels = gridContainer.querySelectorAll('.pixel.active');
+                let csvRows = ['x,y,color']; // CSV Header
+
+                activePixels.forEach(pixel => {
+                    const x = pixel.dataset.x;
+                    const y = pixel.dataset.y;
+                    const color = '#000000'; // Active color is black
+                    csvRows.push(`${x},${y},${color}`);
+                });
+
+                const csvContent = csvRows.join('\n');
+
+                // Create and trigger a download for the CSV file
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'coordinates.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            });
+        });
+    </script>
+
+</body>
 </html>
