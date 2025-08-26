@@ -35,29 +35,89 @@
         button:hover {
             background-color: #e9e9e9;
         }
+        .tools-container {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+            align-items: center;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .tool {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .tool label {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        #active-color-indicator {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px #ccc;
+            border-radius: 5px;
+        }
+        #color-palette {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 5px;
+        }
+        .color-swatch {
+            width: 25px;
+            height: 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            transition: transform 0.1s;
+        }
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
         #grid-container {
             display: grid;
-            border: 1px solid #ccc;
+            border: 1px solid #333;
             background-color: #fff;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .pixel {
             width: 12px;
             height: 12px;
-            /* No border between pixels, the grid gap will handle it */
+            background-color: #ffffff; /* Default color */
+            border-right: 1px solid #eee;
+            border-bottom: 1px solid #eee;
         }
-        .pixel.active {
-            background-color: #000000;
-        }
+        /* No longer need .active class, will use inline styles */
     </style>
 </head>
 <body>
 
     <h1>Піксельний Редактор</h1>
+
+    <div class="tools-container">
+        <div class="tool">
+            <label>Активний колір:</label>
+            <div id="active-color-indicator"></div>
+        </div>
+        <div class="tool">
+            <label>Палітра:</label>
+            <div id="color-palette"></div>
+        </div>
+    </div>
+
+    <div id="grid-container"></div>
+
     <div class="controls">
+        <button id="clear-btn">Очистити все</button>
+        <button id="export-png-btn">Зберегти як PNG</button>
         <button id="export-text-btn">Зберегти як Текстовий Малюнок</button>
         <button id="export-coords-btn">Зберегти як Координати</button>
     </div>
-    <div id="grid-container"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -83,101 +143,165 @@
                 }
             }
 
+            // --- App State ---
+            const colors = ['#000000', '#FFFFFF', '#ff3838', '#ffb838', '#42ff38', '#3877ff', '#a938ff', '#ff38e4', '#808080', '#C0C0C0'];
+            let currentColor = colors[0];
             let isDrawing = false;
 
-            // Function to "draw" on a pixel by toggling its state
+            // --- DOM Elements ---
+            const colorPalette = document.getElementById('color-palette');
+            const activeColorIndicator = document.getElementById('active-color-indicator');
+            const clearBtn = document.getElementById('clear-btn');
+
+            // --- Initialization ---
+            function initializeApp() {
+                // Populate color palette
+                colors.forEach(color => {
+                    const swatch = document.createElement('div');
+                    swatch.classList.add('color-swatch');
+                    swatch.style.backgroundColor = color;
+                    swatch.dataset.color = color;
+                    if (color === '#FFFFFF') {
+                        swatch.title = 'Гумка'; // Eraser tooltip
+                    }
+                    colorPalette.appendChild(swatch);
+                });
+                updateActiveColorIndicator();
+            }
+
+            function updateActiveColorIndicator() {
+                activeColorIndicator.style.backgroundColor = currentColor;
+            }
+
+            initializeApp();
+
+            // --- Event Listeners ---
+
+            // Color selection from palette
+            colorPalette.addEventListener('click', (event) => {
+                if (event.target.dataset.color) {
+                    currentColor = event.target.dataset.color;
+                    updateActiveColorIndicator();
+                }
+            });
+
+            // Clear canvas button
+            clearBtn.addEventListener('click', () => {
+                if (confirm('Ви впевнені, що хочете очистити полотно?')) {
+                    const pixels = gridContainer.querySelectorAll('.pixel');
+                    pixels.forEach(pixel => {
+                        pixel.style.backgroundColor = '#ffffff';
+                    });
+                }
+            });
+
+            // Drawing logic
             function draw(event) {
-                // Check if the target is a pixel to avoid errors
                 if (event.target.classList.contains('pixel')) {
-                    // Use toggle to allow for color inversion (drawing and erasing)
-                    event.target.classList.toggle('active');
+                    event.target.style.backgroundColor = currentColor;
                 }
             }
 
-            // Start drawing on mouse down
             gridContainer.addEventListener('mousedown', (event) => {
-                event.preventDefault(); // Prevent text selection while drawing
+                event.preventDefault();
                 isDrawing = true;
                 draw(event);
             });
 
-            // Continue drawing on mouse move
             gridContainer.addEventListener('mousemove', (event) => {
                 if (isDrawing) {
                     draw(event);
                 }
             });
 
-            // Stop drawing when mouse button is released anywhere
             window.addEventListener('mouseup', () => {
                 isDrawing = false;
             });
 
-            // Also stop drawing if the mouse leaves the grid area
             gridContainer.addEventListener('mouseleave', () => {
                 isDrawing = false;
             });
 
             // --- EXPORT FUNCTIONALITY ---
 
-            const exportTextBtn = document.getElementById('export-text-btn');
+            function rgbToHex(rgb) {
+                if (!rgb || !rgb.startsWith('rgb')) return rgb || '#ffffff'; // Return if already hex or empty
 
-            exportTextBtn.addEventListener('click', () => {
-                const pixels = gridContainer.querySelectorAll('.pixel');
-                // Initialize a 2D array representing the grid, filled with the "white" character
-                let grid = Array.from({ length: gridSize }, () => new Array(gridSize).fill('W'));
+                // Extract numbers from "rgb(r, g, b)"
+                const [r, g, b] = rgb.match(/\d+/g).map(Number);
 
-                // Populate the grid array based on active pixels
-                pixels.forEach(pixel => {
-                    if (pixel.classList.contains('active')) {
-                        const x = parseInt(pixel.dataset.x);
-                        const y = parseInt(pixel.dataset.y);
-                        grid[y][x] = 'B'; // 'B' for black
-                    }
-                });
+                const toHex = (c) => ('0' + c.toString(16)).slice(-2);
+                return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+            }
 
-                // Convert the 2D array to a CSV string
-                const csvContent = grid.map(row => row.join(',')).join('\n');
-
-                // Create and trigger a download for the CSV file
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            function triggerDownload(filename, content) {
+                const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', 'drawing.csv');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                URL.revokeObjectURL(url);
+                URL.revokeObjectURL(link.href);
+            }
+
+            const exportPngBtn = document.getElementById('export-png-btn');
+            exportPngBtn.addEventListener('click', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = gridSize;
+                canvas.height = gridSize;
+                const ctx = canvas.getContext('2d');
+
+                const pixels = gridContainer.querySelectorAll('.pixel');
+                pixels.forEach(pixel => {
+                    const x = parseInt(pixel.dataset.x);
+                    const y = parseInt(pixel.dataset.y);
+                    ctx.fillStyle = pixel.style.backgroundColor || '#ffffff';
+                    ctx.fillRect(x, y, 1, 1);
+                });
+
+                const link = document.createElement('a');
+                link.download = 'pixel-art.png';
+                link.href = canvas.toDataURL('image/png');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+
+            const exportTextBtn = document.getElementById('export-text-btn');
+            exportTextBtn.addEventListener('click', () => {
+                const pixels = gridContainer.querySelectorAll('.pixel');
+                let grid = Array.from({ length: gridSize }, () => new Array(gridSize));
+
+                pixels.forEach(pixel => {
+                    const x = parseInt(pixel.dataset.x);
+                    const y = parseInt(pixel.dataset.y);
+                    grid[y][x] = rgbToHex(pixel.style.backgroundColor);
+                });
+
+                const csvContent = grid.map(row => row.join(',')).join('\n');
+                triggerDownload('drawing.csv', csvContent);
             });
 
             const exportCoordsBtn = document.getElementById('export-coords-btn');
-
             exportCoordsBtn.addEventListener('click', () => {
-                const activePixels = gridContainer.querySelectorAll('.pixel.active');
-                let csvRows = ['x,y,color']; // CSV Header
+                const pixels = gridContainer.querySelectorAll('.pixel');
+                let csvRows = ['x,y,color'];
+                const defaultColor = '#ffffff';
 
-                activePixels.forEach(pixel => {
-                    const x = pixel.dataset.x;
-                    const y = pixel.dataset.y;
-                    const color = '#000000'; // Active color is black
-                    csvRows.push(`${x},${y},${color}`);
+                pixels.forEach(pixel => {
+                    const color = rgbToHex(pixel.style.backgroundColor);
+                    if (color !== defaultColor) {
+                        const x = pixel.dataset.x;
+                        const y = pixel.dataset.y;
+                        csvRows.push(`${x},${y},${color}`);
+                    }
                 });
 
                 const csvContent = csvRows.join('\n');
-
-                // Create and trigger a download for the CSV file
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', 'coordinates.csv');
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
+                triggerDownload('coordinates.csv', csvContent);
             });
         });
     </script>
